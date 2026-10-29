@@ -1,0 +1,103 @@
+---
+name: logging-standard
+description: CMES项目日志记录规范，统一日志记录方式，包含日志方法、日志格式、日志内容规范、敏感信息管理等。
+compatibility: opencode
+metadata:
+  layer: foundation
+  priority: 6
+---
+
+# 日志规范
+
+> 所有CMES项目代码均需遵守此规范，统一日志记录方式，便于问题排查和系统监控
+
+## 1. 日志方法
+
+```groovy
+console.log(message);
+```
+
+| 场景 | 是否需要日志 | 说明 |
+|------|------------|------|
+| 业务方法入口 | 推荐 | 记录关键入参 |
+| 业务方法出口 | 推荐 | 记录关键返回值 |
+| 异常捕获 | 必须 | 记录异常信息 |
+| 外部接口调用 | 必须 | 记录请求和响应 |
+
+## 2. 日志格式规范
+
+### 2.1 基本格式
+```groovy
+console.log("查询企业信息，编号: " + enterpriseNo);
+console.log("删除工厂，名称: " + factoryName);
+```
+
+### 2.2 方法入口日志
+```groovy
+def saveEnterprise(Map obj) {
+    console.log("保存企业信息，编号: " + obj.enterpriseNo + "，名称: " + obj.enterpriseName);
+}
+```
+
+### 2.3 异常日志
+```groovy
+try {
+    def result = externalService.call(params);
+} catch (Exception e) {
+    console.log("接口调用失败，地址: " + url + "，错误: " + e.getMessage());
+    throw new SysException("接口调用失败，请稍后重试");
+}
+```
+
+### 2.4 外部接口日志
+```groovy
+console.log("调用OA接口，请求参数: " + Util.toJson(params));
+console.log("调用OA接口，响应结果: " + Util.toJson(result));
+```
+
+## 3. 日志内容规范
+
+### 3.1 应该记录的内容
+- 方法名称和关键参数
+- 外部接口的请求和响应
+- 异常的错误消息
+- 数据变更的关键信息
+
+### 3.2 不应记录的内容
+- 敏感信息（密码、密钥、Token）
+- 大量数据（完整列表）
+- 循环内的逐条日志
+
+### 3.3 日志消息规范
+| 规则 | 说明 | 示例 |
+|------|------|------|
+| 使用中文 | 与业务语言一致 | "查询企业信息" |
+| 包含关键标识 | 带上编号或名称 | "编号: " + no |
+| 简洁明确 | 一句话说清楚 | 动词开头 |
+
+## 4. 禁止的写法
+
+```groovy
+// ❌ 禁止：日志内容过于简单
+console.log("error");
+// ❌ 禁止：记录敏感信息
+console.log("用户密码: " + password);
+// ❌ 禁止：记录大量数据
+console.log("全部数据: " + Util.toJson(bigList));
+```
+
+## 5. 敏感信息管理
+
+- **密码、密钥、Token** 等敏感信息**禁止**硬编码在源码中
+- 必须通过配置读取，优先使用接口配置表
+
+## 6. 检查清单
+
+| 序号 | 检查项 | 是否通过 |
+|-----|-------|----------|
+| 1 | 异常捕获处有日志记录 | ☐ |
+| 2 | 外部接口调用有请求/响应日志 | ☐ |
+| 3 | 日志消息包含关键标识 | ☐ |
+| 4 | 没有记录敏感信息 | ☐ |
+| 5 | 没有循环中逐条记录 | ☐ |
+| 6 | 日志使用中文 | ☐ |

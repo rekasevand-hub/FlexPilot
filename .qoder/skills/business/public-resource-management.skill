@@ -1,0 +1,88 @@
+# 公共资源管理模块规范
+
+> 本规范适用于公共资源管理模块下的所有 BZC 业务组件和 Domain 实体
+
+## 1. 目录结构
+
+### BZC业务组件 (bzc/基础/)
+```
+bzc/基础/公共资源管理/
+├── 物理建模/
+│   ├── 1_企业/EnterpriseInfo.groovy
+│   ├── 2_工厂/FactoryInfo.groovy
+│   ├── 3_园区/ParkInfo.groovy
+│   ├── 4_厂区/AreaInfo.groovy
+│   ├── 5_车间/WorkshopInfo.groovy
+│   ├── 6_工段/SectionInfo.groovy
+│   └── 7_生产线/ProductionLineInfo.groovy
+├── 人员管理/人员信息/
+│   ├── AreaSource.groovy
+│   ├── CreateEmpAndUser.groovy
+│   ├── QueryUserStatus.groovy
+│   └── UserArea.groovy
+└── 物料管理/无需上料物料/
+    └── NoFeedMaterialAdd.groovy
+```
+
+## 2. 通用规范
+
+### 文件类型
+- **.json 文件** → Domain 实体
+- **.groovy 文件** → BZC 业务组件
+
+### 字段命名
+- **xxNo** - 代表某某编号
+- **xxName** - 代表某某名称
+
+### 包命名
+```
+app.base.bzcomponent.public_resource_management.{子模块}.{功能模块}
+```
+
+## 3. 物理建模模块
+
+### 层级关系
+| 层级 | 当前模块 | 上级模块 | 下级模块 | No字段 | Name字段 |
+|------|---------|---------|---------|--------|--------|---------|
+| 1 | 企业 | - | 工厂 | enterpriseNo | enterpriseName |
+| 2 | 工厂 | 企业 | 园区 | factoryNo | factoryName |
+| 3 | 园区 | 工厂 | 厂区 | parkNo | parkName |
+| 4 | 厂区 | 园区 | 车间 | areaNo | areaName |
+| 5 | 车间 | 厂区 | 工段 | workshopNo | workshopName |
+| 6 | 工段 | 车间 | 生产线 | sectionNo | sectionName |
+| 7 | 生产线 | 工段 | - | productionLineNo | productionLineName |
+
+**特殊规则**：删除上级模块时，需要检查下级是否有引用
+
+## 4. 人员管理模块
+
+### 组件说明
+| 组件 | 功能 |
+|-----|------|
+| AreaSource | 获取当前登录人员的厂区信息 |
+| CreateEmpAndUser | 同步创建/修改/删除员工对应的系统用户 |
+| QueryUserStatus | 查询用户状态信息 |
+
+### 特殊规则
+- **用户同步**：创建员工时同步创建系统用户
+- **删除操作不需要密码**
+- **密码从配置读取**
+
+## 5. 物料管理模块
+
+### 无需上料物料 (NoFeedMaterial)
+- **联合唯一约束**：material + areaNo 联合唯一
+- **批量新增校验**：使用 RQL 参数化查询
+
+### 物料 (Material)
+- **版本控制**：启用了 revision
+
+## 6. RQL 批量查询
+```groovy
+// ✅ 正确
+def areaRql = "select * from Area where areaNo *= {? 'areaNo'}";
+def areaResult = ude.execQuery(areaRql, ['areaNo': areaNoList], true);
+
+// ❌ 错误：SQL 拼接
+def areaStr = areaList.join("','");
+```

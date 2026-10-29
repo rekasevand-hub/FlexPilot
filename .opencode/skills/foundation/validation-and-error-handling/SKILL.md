@@ -1,0 +1,169 @@
+---
+name: validation-and-error-handling
+description: 校验与异常处理规范，包含业务规则检查、异常抛出捕获、日志记录等内容。
+compatibility: opencode
+metadata:
+  layer: foundation
+  priority: 2
+---
+
+# 校验与异常处理规范
+
+> 校验-异常-日志是业务代码的标准处理流程，统一规范提升代码健壮性
+
+## 1. 业务规则检查
+
+### 1.1 检查时机
+
+- **生成代码前**：必须先检查业务规则是否明确定义
+- **如有疑问**：必须向用户确认后才能继续生成代码
+
+### 1.2 检查清单
+
+| 序号 | 检查项 | 说明 |
+|-----|-------|------|
+| 1 | Domain 是否已提供 | 业务需求发布后，必须先有 Domain 定义 |
+| 2 | 字段非空校验 | nullable=false 的字段必须生成非空校验代码 |
+| 3 | 字段唯一性校验 | unique=true 的字段必须生成唯一性校验代码 |
+| 4 | 关联关系校验 | 删除操作必须检查下级是否被引用 |
+| 5 | 业务特殊规则 | 如有特殊业务逻辑，需确认后生成 |
+
+### 1.3 校验逻辑
+
+#### 非空校验
+```groovy
+if (Util.isStringBlank(obj.fieldName)) {
+    throw new SysException("字段名称不能为空！");
+}
+```
+
+#### 唯一性校验
+```groovy
+def existing = EntityName.find(["fieldName": obj.fieldName]);
+if (existing) {
+    throw new SysException("该编码已存在，不可重复！");
+}
+```
+
+#### 关联关系校验
+```groovy
+List<SubEntity> list = SubEntity.findAll([parentNo: obj.parentNo]);
+if (list.size() > 0) {
+    throw new SysException("删除失败，该记录已被下级使用");
+}
+```
+
+#### 联合唯一性校验
+```groovy
+def nfmRql = "select * from NoFeedMaterial where material *= {? 'material'} and areaNo = {? 'areaNo'}";
+def nfmList = ude.execQuery(nfmRql, ["material": materialCodes, "areaNo": areaNow], true);
+if (nfmList && nfmList.size() > 0) {
+    def existMaterials = nfmList.material.join(",");
+    throw new SysException("当前厂区【" + areaNow + "】，物料编码：【" + existMaterials + "】已存在");
+}
+```
+
+### 1.4 Domain 字段属性对应
+
+| Domain属性 | 校验类型 |
+|-----------|---------|
+| nullable: false | 非空校验 |
+| unique: true | 唯一性校验 |
+| unique: composite | 联合唯一性校验 |
+
+## 2. 异常处理
+
+### 2.1 异常类型
+
+| 异常类 | 用途 |
+|-------|------|
+| SysException | 业务异常（校验失败、数据不合法） |
+| 系统运行时异常 | 不主动捕获，由平台处理 |
+
+### 2.2 使用原则
+
+- **业务校验失败** → 抛出 SysException
+- **禁止** 吞掉异常（空 catch 块）
+- **禁止** 使用 e.printStackTrace()
+
+### 2.3 消息格式
+
+必须包含：操作 + 主体 + 原因
+
+```groovy
+throw new SysException("删除失败，" + obj.enterpriseName + "已在工厂信息使用");
+```
+
+### 2.4 捕获规范
+
+```groovy
+try {
+    def result = externalService.call(params);
+} catch (Exception e) {
+    console.log("接口调用失败: " + e.getMessage());
+    throw new SysException("接口调用失败，请稍后重试");
+}
+```
+
+### 2.5 返回值规范
+
+```groovy
+// 简单操作
+return SysResult.OK;
+
+// 带业务数据
+return ["createCount": createCount, "updateCount": updateCount];
+```
+
+### 2.6 数据格式兼容
+
+外部接口返回可能是 List 或 Map，需用 instanceof 判断：
+```groovy
+if (itemData instanceof List) { ... }
+else if (itemData instanceof Map) { ... }
+```
+
+## 3. 日志规范
+
+### 3.1 日志方法
+
+```groovy
+console.log(message);
+```
+
+### 3.2 记录时机
+
+| 场景 | 是否必须 |
+|-----|---------|
+| 异常捕获 | ✅ 必须 |
+| 外部接口调用 | ✅ 必须 |
+| 业务方法入口 | 推荐 |
+
+### 3.3 格式要求
+
+- 使用中文
+- 包含关键标识（编号、名称）
+- 简洁明确
+
+```groovy
+console.log("查询企业信息，编号: " + enterpriseNo);
+```
+
+### 3.4 禁止记录
+
+- 敏感信息（密码、Token）
+- 大量数据
+- 循环内的逐条日志
+
+## 4. 检查清单
+
+| 序号 | 检查项 |
+|-----|-------|
+| 1 | nullable=false 的字段有非空校验 |
+| 2 | unique=true 的字段有唯一性校验 |
+| 3 | 删除操作检查下级引用 |
+| 4 | 异常使用 SysException，消息包含操作+主体+原因 |
+| 5 | 没有空 catch 块和 e.printStackTrace() |
+| 6 | 异常捕获处有日志记录 |
+| 7 | 成功返回使用 SysResult.OK |
+| 8 | 没有记录敏感信息 |

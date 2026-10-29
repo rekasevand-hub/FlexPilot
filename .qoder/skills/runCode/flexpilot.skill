@@ -1,0 +1,94 @@
+# Low-code platform Skill
+
+Low-code platform 文件操作工具，支持 **上传**、**下载**、**执行** 三种操作。
+
+## 目录结构
+
+```
+.opencode/skills/flexpilot/
+├── scripts/
+│   ├── upload.py    # 上传文件
+│   ├── download.py  # 下载文件
+│   └── run.py       # 执行文件
+├── utils/
+│   └── utils.py     # 工具类
+├── commands/        # 命令说明
+└── SKILL.md         # 本文件
+```
+
+## 快速开始
+
+### 1. 配置账户
+
+在项目根目录创建 `flexpilot-accounts.json`：
+
+```json
+{
+    "currentEnv": "dev",
+    "environments": [
+        {
+            "name": "dev",
+            "user": "your-username",
+            "password": "your-password",
+            "org": "your-org",
+            "url": "http://lowcode-dev.example.com",
+            "tokenUri": "http://lowcode-dev.example.com/auth/login"
+        },
+        {
+            "name": "prod",
+            "user": "your-username",
+            "password": "your-password",
+            "org": "your-org",
+            "url": "https://lowcode.example.com",
+            "tokenUri": "https://lowcode.example.com/auth/login"
+        }
+    ]
+}
+```
+
+### 2. 上传文件
+
+```bash
+python .opencode/skills/flexpilot/scripts/upload.py --env dev --file src/path/to/file.groovy
+```
+
+### 3. 下载文件
+
+```bash
+python .opencode/skills/flexpilot/scripts/download.py --env dev --file src/path/to/file.groovy
+```
+
+### 4. 执行文件
+
+```bash
+python .opencode/skills/flexpilot/scripts/run.py --env dev --file src/path/to/file.groovy
+```
+
+## 文件路径规范
+
+- 本地文件放在 `src/` 目录下
+- 路径相对于 `src/` 目录
+- 示例：`src/mold_manage/bzcomponent/BZTest.groovy` 对应服务器路径 `/repository/mold_manage/bzcomponent/BZTest`
+
+## 支持的文件类型
+
+| 类型 | 扩展名 |
+|------|--------|
+| Groovy | `.groovy` |
+| JavaScript | `.js` |
+| Python | `.py` |
+| HTML | `.html` |
+| JSON | `.json` |
+| SQL | `.sql` |
+
+## 注意事项
+
+1. **上传前**：确保远程文件已存在（在 Low-code platform 平台创建）
+2. **执行前**：先上传本地修改到服务器
+3. **下载前**：确保本地 `src/` 目录结构存在
+
+## 错误处理
+
+- 认证失败：检查 `flexpilot-accounts.json` 凭证
+- 文件不存在：确保远程文件已创建
+- 执行错误：查看 Console Output 中的错误信息

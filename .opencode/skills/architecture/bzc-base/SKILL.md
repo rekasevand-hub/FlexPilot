@@ -1,0 +1,184 @@
+---
+name: bzc-base
+description: BZC业务组件基础规范，包含类结构、Import规范、方法模板、注释规范（每行代码必加注释）、编码习惯等。所有BZC组件开发均需遵守此规范。
+compatibility: opencode
+metadata:
+  layer: architecture
+  priority: 1
+---
+
+# BZC业务组件基础规范
+
+## 1. 类结构
+
+### 1.1 继承与实现
+- 所有BZC类继承自 `BaseBZC`
+- 类名格式: `{模块名}Info`
+
+### 1.2 标准方法
+```groovy
+package app.base.bzcomponent.{模块路径};
+import javax.servlet.http.HttpServletRequest;
+import com.lowcode-platform.common.*;
+import com.lowcode-platform.system.base.*;
+import com.lowcode-platform.system.services.*;
+import com.lowcode-platform.system.ude.*;
+import app.base.domain.*;
+
+class {模块名}Info extends BaseBZC {
+    static void main(args) { }
+    def {业务方法}(Map obj) { }
+    def delete(def obj) { }
+    def doGet(HttpServletRequest request) { }
+    def doPost(HttpServletRequest request) { }
+    def doPut(HttpServletRequest request) { }
+    def doDelete(HttpServletRequest request) { }
+}
+```
+
+> 注：delete方法根据业务需要按需实现，非必选。
+
+## 2. Import规范
+
+### 2.1 顺序要求
+1. `javax.servlet.http.*`
+2. `com.lowcode-platform.common.*`
+3. `com.lowcode-platform.system.base.*`
+4. `com.lowcode-platform.system.services.*`
+5. `com.lowcode-platform.system.ude.*`
+6. `app.base.domain.*`
+
+## 3. main方法模板
+
+```groovy
+static void main(args) {
+    def bzc = new {类名}();
+    def result = bzc.{业务方法}([{参数名}: ""]);
+    console.log(result);
+}
+```
+
+## 4. 业务方法模板
+
+```groovy
+def {业务方法}(Map obj){
+    def bool = obj._data == null ? true : false;
+    if(bool){
+        this.delete(obj);
+    }else{
+        obj._data.each{ this.delete(it); }
+    }
+    return SysResult.OK;
+}
+```
+
+## 5. delete方法模板
+
+```groovy
+def delete(def obj){
+    def {no} = obj.{no};
+    Map params = ["{no}": {no}];
+    List <{下级Entity}> list = {下级Entity}.findAll(params) as List <{下级Entity}>;
+    if (list.size() > 0) {
+        throw new SysException("删除失败，" + obj.{name} + "已在{下级中文名}信息使用");
+    } else {
+        {Entity} req = {Entity}.find(["{no}": {no}]);
+        if(req){ req.remove(); }
+    }
+}
+```
+
+## 6. RESTful方法模板
+
+```groovy
+def doGet(HttpServletRequest request) {
+    def obj = SysHelper.getRequestParameters(request);
+    return obj;
+}
+def doPost(HttpServletRequest request) {
+    def obj = SysHelper.getRequestBody(request);
+    return {业务方法}(obj);
+}
+def doPut(HttpServletRequest request) { return SysResult.OK; }
+def doDelete(HttpServletRequest request) { return SysResult.OK; }
+```
+
+### 空实现规范
+- doPut / doDelete 如果暂不实现，必须保留空方法体并返回 `SysResult.OK`
+- 方法注释中应标注 `暂未实现`
+
+## 7. 编码习惯
+
+- 4个空格缩进
+- 方法之间有一个空行
+- 删除类业务方法需判断单点/批量删除: `obj._data == null`
+- 删除操作前检查下级关联关系
+
+### 7.1 注释规范（强制要求）
+
+**生成的所有代码，每一行都必须添加中文注释。**
+
+| 规范项 | 要求 |
+|-------|------|
+| 注释位置 | 注释统一放在代码行尾，使用 `//` 格式 |
+| 注释语言 | 必须使用中文注释 |
+| 注释内容 | 清晰说明代码意图和作用 |
+| 覆盖范围 | 代码的每一行都必须有注释，包括空行无需注释 |
+
+**正确示例：**
+```groovy
+class CrossSkyUtils extends BaseBZC { // 定义类CrossSkyUtils，继承BaseBZC
+
+    static void main(args) { // 主方法入口，用于测试
+        def bzc = new CrossSkyUtils(); // 实例化当前类
+        def result = bzc.getCrossSky(); // 调用getCrossSky方法获取跨天日期范围
+        console.log(result); // 打印结果到控制台
+    }
+}
+```
+
+**错误示例（缺少注释）：**
+```groovy
+class CrossSkyUtils extends BaseBZC {
+    static void main(args) {
+        def bzc = new CrossSkyUtils();
+        def result = bzc.getCrossSky();
+        console.log(result);
+    }
+}
+```
+
+## 8. 方法间数据传递规范
+
+### 8.1 统计数据必须通过返回值传递
+```groovy
+def employeeBaseInfo(List list, List empAll) {
+    def result = execute(list, empAll);
+    RetData.create = result.createCount ?: 0;
+}
+def execute(list, empAll) {
+    def createCount = 0;
+    return [createCount: createCount];
+}
+```
+
+### 8.2 禁止用 SysResult.OK 携带业务数据
+
+### 8.3 try/catch 中变量声明作用域
+- 在 try 和 catch 块中都需要赋值的变量，必须在 try/catch 外层声明
+
+## 9. 检查清单
+
+| 序号 | 检查项 | 是否通过 |
+|-----|-------|----------|
+| 1 | 类继承自 BaseBZC | ☐ |
+| 2 | 类名格式为 {模块名}Info | ☐ |
+| 3 | 包含 main 方法 | ☐ |
+| 4 | 包含业务方法 | ☐ |
+| 5 | 包含 delete 方法 | ☐ |
+| 6 | 包含 RESTful 方法 | ☐ |
+| 7 | Import 顺序符合规范 | ☐ |
+| 8 | 4空格缩进 | ☐ |
+| 9 | 删除判断逻辑正确 | ☐ |
+| 10 | 异常使用 SysException | ☐ |
+| 11 | 每行代码都有中文注释 | ☐ |

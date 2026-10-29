@@ -1,0 +1,109 @@
+---
+name: quality-batch-issue
+description: 产品质量批量问题记录业务规范，包含BatchQualityIssue批量质量预警检测的目录结构、实体定义、业务规则、调用时序等。
+compatibility: opencode
+metadata:
+  layer: business
+  priority: 4
+---
+
+# 产品质量批量问题记录
+
+> 产品质量批量问题记录业务模块规范
+
+## 1. 目录结构
+
+### BZC业务组件
+```
+bzc/生产管理/单据记录/产品质量批量问题记录/
+└── BatchQualityIssue.groovy
+```
+
+### Domain实体
+```
+Domain/生产管理/单据记录/产品质量批量问题记录/
+├── BatchQualityIssueLog.json
+├── BatchQualityIssueLogDetails.json
+└── BatchQualityIssueLogDetailsLog.json
+```
+
+## 2. 实体列表
+
+| 实体 | 说明 |
+|-----|------|
+| BatchQualityIssueLog | 批量质量预警主表 |
+| BatchQualityIssueLogDetails | 预警明细表 |
+| BatchQualityIssueLogDetailsLog | 预警日志表（后台表） |
+
+## 3. 业务逻辑
+
+### 核心功能
+监控产品族在短时间内的不合格盘数，达到阈值时触发预警
+
+### 触发条件
+- monitorHours > 0（监控时间范围）
+- monitorNum > 0（触发预警的最低不合格盘数）
+
+### 预警规则
+1. 质检完成时调用 batchQualityIssue 接口
+2. 查询前后 monitorHours 小时内同产品族的不合格记录
+3. 记录数 ≥ monitorNum 时触发预警
+4. 发送烽火通消息
+
+## 4. 字段规范
+
+### BatchQualityIssueLog
+| 字段名 | 类型 | nullable |
+|-------|------|----------|
+| batchNo | String(255) | true |
+| alertDateTime | Datetime | true |
+| alertType | String(64) | true |
+| alertNum | Decimal(5) | true |
+| alertHour | Decimal(5) | true |
+| productFamily | String(32) | true |
+| prodFam | String(32) | true |
+
+### BatchQualityIssueLogDetails
+| 字段名 | 类型 | nullable |
+|-------|------|----------|
+| batchNo | String(255) | true |
+| mfgOrderCode | String(128) | true |
+| material | String(128) | true |
+| container | String(64) | true |
+| workCenter | String(32) | true |
+| userTeam | String(32) | true |
+
+### BatchQualityIssueLogDetailsLog
+| 字段名 | 类型 | nullable |
+|-------|------|----------|
+| prodFam | String(32) | true |
+| container | String(64) | true |
+| flag | Boolean | true |
+| productionOfflineTime | Datetime | true |
+
+## 5. 特殊规则
+
+1. **重复记录处理**：通过 try-catch 捕获保存异常
+2. **时间窗口查询**：使用 RQL 查询
+3. **消息推送**：发送烽火通 Markdown 消息
+4. **防重检查**：创建前检查 container 是否已存在
+5. **flag 更新**：触发后更新日志表 flag
+
+## 6. 调用时序
+
+1. 质检完成 → 调用 batchQualityIssue
+2. 查询产品族配置
+3. 保存日志记录（flag=false）
+4. 查询前时间窗口
+5. 查询后时间窗口
+6. 判断是否触发预警
+7. 创建预警主表
+8. 创建预警明细
+9. 更新 flag=true
+10. 发送消息
+
+## 7. 相关模块
+
+- ProcessProdFamily → 提供配置
+- ProcessProdFamilyDetails → 消息接收人
+- EmployeeDetails → 查询组

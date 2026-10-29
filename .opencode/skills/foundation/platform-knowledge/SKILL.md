@@ -1,0 +1,203 @@
+---
+name: platform-knowledge
+description: CMES平台技术知识笔记，包含HTTP请求参数获取、RQL批量查询、工具类、RESTful接口规范、Domain实体操作等平台技术细节。
+compatibility: opencode
+metadata:
+  layer: foundation
+  priority: 4
+---
+
+# 平台知识笔记
+
+> 用于记录 CMES 平台相关的技术知识，包括 API、工具类、框架特性等
+
+## 1. HTTP 请求参数获取
+
+### 1.1 获取请求体
+```groovy
+def obj = SysHelper.getRequestBody(request);  // 用于 POST 或 PUT
+```
+
+### 1.2 获取请求参数
+```groovy
+def obj = SysHelper.getRequestParameters(request);  // 用于 GET
+```
+
+## 2. RQL 查询（解决 N+1 问题）
+
+### 2.1 RQL 批量查询语法
+RQL（Relation Query Language）是平台提供的查询语言，支持批量查询避免 N+1 问题。
+
+```groovy
+def rql = '''
+    select * from Area where areaNo *= {? 'areaNo'}
+'''
+def result = ude.execQuery(rql, ['areaNo': valueList], true)
+def area = result.find { it.areaNo == targetNo }
+```
+
+| 参数 | 说明 |
+|-----|------|
+| `{? '字段名'}` | 占位符，批量传入值列表 |
+| ude.execQuery | 平台提供的查询方法 |
+
+### 2.2 使用场景
+- 下拉选择框数据组装
+- 批量数据校验
+- 关联数据加载
+
+### 2.3 示例：下拉选择框数据组装
+```groovy
+def areaStr = "SN,TL,SW,O"
+def areaNoList = areaStr.split(',') as List
+def rql = '''select * from Area where areaNo *= {? 'areaNo'}'''
+def result = ude.execQuery(rql, ['areaNo': areaNoList], true)
+List list = [];
+areaNoList.each { no ->
+    def area = result.find { it.areaNo == no }
+    if (area) {
+        list.add([value: no, name: area.areaName])
+    }
+}
+```
+
+### 2.4 对比传统方式
+| 方式 | 查询次数 | 性能 |
+|-----|---------|------|
+| 传统循环查询 | N+1 次 | 差 |
+| RQL 批量查询 | 1 次 | 好 |
+
+## 3. 常用工具类
+
+### 3.1 字符串工具
+```groovy
+Util.isStringBlank(str)     // 判断字符串是否为空
+Util.toDate(dateString)   // 转换为日期
+Util.toMap(object)         // 转换为 Map
+Util.toJson(object)       // 转换为 JSON
+```
+
+### 3.2 安全相关
+```groovy
+SecurityHelper.normalizeUsername(username)    // 用户名标准化
+SecurityHelper.checkPasswordStrength(password)  // 密码强度检查
+```
+
+### 3.3 获取当前用户
+```groovy
+SysHelper.getCurrentUsername()  // 获取当前登录用户名
+SysHelper.getBean(ClassName.class)  // 获取 Bean
+```
+
+## 4. RESTful 接口规范
+
+### 4.1 方法映射
+| HTTP 方法 | 处理方法 | 用途 |
+|----------|---------|------|
+| GET | doGet | 查询 |
+| POST | doPost | 新增 |
+| PUT | doPut | 更新 |
+| DELETE | doDelete | 删除 |
+
+### 4.2 方法模板
+```groovy
+class XxxInfo extends BaseBZC {
+    def doGet(HttpServletRequest request) {
+        def obj = SysHelper.getRequestParameters(request)
+        return getData(obj)
+    }
+    def doPost(HttpServletRequest request) {
+        def obj = SysHelper.getRequestBody(request)
+        return saveData(obj)
+    }
+}
+```
+
+## 5. Domain 实体操作
+
+### 5.1 查询
+```groovy
+Entity.find([field: value])           // 单条查询
+Entity.findAll([field: value])       // 多条查询
+```
+
+### 5.2 保存
+```groovy
+entity.save()
+entity.remove()
+```
+
+## 6. SysResult 返回值
+
+### 6.1 SysResult.OK 结构
+```groovy
+SysResult.OK  // 实际值: ["error": "SUCCESS", "message": "SUCCESS"]
+```
+
+### 6.2 判断处理结果
+```groovy
+result = this.execute([...]);
+if (result.error == "SUCCESS") {
+    resultCode = 1;
+} else {
+    message = result.message;
+}
+```
+
+### 6.3 返回业务数据
+```groovy
+return ["createCount": createCount, "updateCount": updateCount];
+return ['ResultFlag': resultCode, 'ResultMsg': message, 'RetData': data];
+```
+
+## 7. 注意事项
+
+### 7.1 性能优化
+- 避免循环中单独查询，使用 RQL 批量查询
+- 平台不支持 MongoDB 原生语法（如 `$in`）
+
+### 7.2 判空处理
+- 字符串判空使用 `Util.isStringBlank()`
+- 对象判空使用 `if (obj)` 而非 `if (obj != null)`
+
+### 7.3 类型转换
+```groovy
+def arr = "SN,TL,SW".split(',')  // String[]
+def list = arr as List           // 转为 List
+```
+
+### 7.4 外部接口数据格式兼容性
+
+> **重要经验**：调用外部系统接口时，返回的数据格式可能与测试数据不一致，必须兼容处理。
+
+**问题描述**：
+- 测试数据中 `items` 字段是 List 结构
+- 真实接口返回的 `items` 字段是 Map 结构
+- 直接按一种格式处理会导致 "Cannot get property 'value' on null object" 错误
+
+**解决方案**：
+```groovy
+def itemData = it.items;  // 外部接口返回的字段
+def items = null;
+def details = null;
+if (itemData instanceof List) {  // 如果是List类型
+    if (!itemData.isEmpty()) {
+        items = itemData[0] as Map;
+        if (items != null && items.containsKey("value")) {
+            details = Util.fromJson(items.value, List);
+        }
+    }
+} else if (itemData instanceof Map) {  // 如果是Map类型
+    items = itemData as Map;
+    if (items != null && items.containsKey("value")) {
+        details = Util.fromJson(items.value, List);
+    }
+}
+```
+
+**经验教训**：
+1. 测试数据格式应与真实接口保持一致
+2. 无法确定数据格式时，使用 `instanceof` 判断类型
+3. 增加空值判断，避免 NPE
+4. 调试时可使用 `console.log()` 输出数据类型和类名
+5. 调用外部接口前应先确认接口文档，明确返回数据格式

@@ -1,0 +1,38 @@
+---
+name: mold-management
+description: 模具管理模块规范，目前包含基础测试组件。
+compatibility: opencode
+metadata:
+  layer: business
+  priority: 5
+---
+
+# 模具管理模块规范
+
+> 本规范适用于模具管理模块下的所有 BZC 业务组件和 Domain 实体
+
+## 1. 目录结构
+
+### BZC业务组件 (bzc/模具管理/)
+```
+bzc/模具管理/
+└── BZTest.groovy      # 测试组件
+```
+
+### Domain实体 (Domain/模具管理/)
+```
+Domain/模具管理/
+└── (待定义)
+```
+
+## 2. 业务规则
+
+| 模块 | 规则 | 说明 |
+|-----|------|------|
+| 通用 | 待完善 | 模块开发中，暂无业务规则 |
+
+## 3. 待开发功能
+
+- [ ] 模具基础信息管理
+- [ ] 模具使用记录
+- [ ] 模具维护计划

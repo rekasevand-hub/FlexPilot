@@ -1,0 +1,29 @@
+{
+    "currentEnv": "dev",
+    "environments": [
+        {
+            "name": "dev",
+            "user": "your-username",
+            "password": "your-password",
+            "org": "your-org",
+            "url": "http://lowcode-dev.example.com",
+            "tokenUri": "http://lowcode-dev.example.com/auth/login"
+        },
+        {
+            "name": "devnew",
+            "user": "your-username",
+            "password": "your-password",
+            "org": "your-org",
+            "url": "https://lowcode-qas.example.com",
+            "tokenUri": "https://lowcode-qas.example.com/auth/login"
+        },
+        {
+            "name": "prod",
+            "user": "your-username",
+            "password": "your-password",
+            "org": "your-org",
+            "url": "https://lowcode.example.com",
+            "tokenUri": "https://lowcode.example.com/auth/login"
+        }
+    ]
+}

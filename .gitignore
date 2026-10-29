@@ -1,0 +1,11 @@
+# 凭证文件（双重保险，各子目录 .gitignore 也有一份）
+**/flexpilot-accounts.json
+
+# 本地个人文件
+scripts/.path-backup.txt
+
+# 临时探测脚本
+.opencode/tmp/
+
+# Python 缓存
+__pycache__/

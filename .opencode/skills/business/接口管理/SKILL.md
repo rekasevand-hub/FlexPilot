@@ -1,0 +1,128 @@
+---
+name: interface-management
+description: 接口管理模块规范，包含HR、OA、PDC、QMS等子模块的目录结构、Domain实体、BZC组件、业务规则等。
+compatibility: opencode
+metadata:
+  layer: business
+  priority: 2
+---
+
+# 接口管理模块规范
+
+> 本规范适用于接口管理模块下的所有 BZC 业务组件和 Domain 实体
+
+## 1. 目录结构
+
+### BZC业务组件 (bzc/接口管理/)
+```
+bzc/接口管理/
+├── HR/
+│   ├── PerInfoSync.groovy
+│   └── ShiftInfo.groovy
+├── OA/EmployeeBaseInfo.groovy
+├── PDC/PdcSubstitutionGroup.groovy
+└── QMS/UnqualifiedInfoReceive.groovy
+```
+
+### Domain实体 (Domain/接口管理/)
+```
+Domain/接口管理/
+├── ApiApplicationInfo.json
+├── InterfaceConfig.json
+└── message/
+    └── MessageInterfaceLogInfo.json
+```
+
+## 2. 包路径
+
+```
+BZC: app.interface_manage.bzcomponent.{子模块}.{功能模块}
+Domain: app.interface_manage.domain.{子模块}.{功能模块}
+```
+
+> 注意：message子模块的包路径为 `app.interface_manage.domain.message.*`
+
+## 3. 业务规则
+
+| 模块 | 规则 | 说明 |
+|-----|------|------|
+| **通用** | 分页查询 | pageNo 从 0 开始，循环内先 ++ 再请求 |
+| **通用** | 数据类型兼容 | 接口返回可能是 List 或 Map，需用 instanceof 判断 |
+| HR | 接口调用 | OpenApiHelper.invokeOpenApiPost() |
+| HR | 去重逻辑 | 按 username 大小写不敏感，toUpperCase() |
+| OA | 数据源 | fhsys.MV_USERPOSTDEPT |
+| OA | 查询条件 | isactive = '1' AND isadditionalpost = 'N' |
+| OA | 同步标识 | isComplete 必须在 return 之前置为 true |
+| PDC | 游标分页 | 最多循环100次 |
+| PDC | 批量保存 | ude.batchUpsert() |
+| QMS | 入参校验 | 必填字段为空时抛出 SysException |
+
+## 4. Domain 实体
+
+### 接口应用信息 (ApiApplicationInfo)
+| 字段名 | 类型 | nullable | 说明 |
+|-------|------|----------|------|
+| appId | String(255) | true | 应用编码 |
+| appDesc | String(255) | true | 应用描述 |
+| type | String(50) | true | 数据类型 |
+| policeNo | String(255) | true | 警号 |
+| userId | String(255) | true | 用户编码 |
+| tokenUrl | String(255) | true | 令牌获取地址 |
+| userToken | Text | true | 用户令牌信息 |
+| appToken | Text | true | 应用令牌信息 |
+| userExpireAt | Long | true | 用户令牌过期时间 |
+| appExpireAt | Long | true | 应用令牌过期时间 |
+
+### 接口配置 (InterfaceConfig)
+| 字段名 | 类型 | nullable | 说明 |
+|-------|------|----------|------|
+| interfaceCode | String(50) | true | 接口代号 |
+| interfaceName | String(30) | true | 接口名称 |
+| interfaceDescribe | String(200) | true | 接口描述 |
+| interfaceUrl | String(255) | true | 接口路径配置 |
+| serviceId | String(255) | true | 服务ID |
+| userId | String(255) | true | 用户ID |
+| subId | String(255) | true | 主体ID |
+| executionTime | Datetime | true | 执行时间 |
+
+### 接口日志 (MessageInterfaceLogInfo)
+| 字段名 | 类型 | nullable | 说明 |
+|-------|------|----------|------|
+| logTime | Datetime | true | 日志时间，格式yyyy-MM-dd HH:mm:ss |
+| interfaceCode | String(255) | true | 接口代号 |
+| inParam | Text | true | 入参，Json格式存入 |
+| outParam | Text | true | 输出，Json格式存入 |
+| result | Integer | true | 执行结果，成功为1，失败为0 |
+| execTime | Decimal(18,6) | true | 执行时长 |
+| execExtTime | Decimal(18,6) | true | 第三方时长 |
+
+## 5. 代码模板
+
+### 分页查询
+```groovy
+params.page.pageNo = 0;
+while (true) {
+    params.page.pageNo++;
+    def result = this.getData(params);
+    if (result.data) { ... } else { break; }
+}
+```
+
+### 去重逻辑
+```groovy
+def tempList = resultData.groupBy { it.username == null ? it.userid : (it.username as String).toUpperCase() };
+```
+
+### 删除后返回
+```groovy
+if (Refresh && emp?.employee != null) {
+    emp.remove();
+    return null;
+}
+```
+
+### 数据类型兼容
+```groovy
+def itemData = it.items;
+if (itemData instanceof List) { ... } else if (itemData instanceof Map) { ... }
+```

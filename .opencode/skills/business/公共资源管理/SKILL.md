@@ -1,0 +1,161 @@
+---
+name: public-resource-management
+description: 公共资源管理模块规范，包含物理建模、人员管理、工艺建模、物料管理等子模块的目录结构、字段定义、业务规则等。
+compatibility: opencode
+metadata:
+  layer: business
+  priority: 1
+---
+
+# 公共资源管理模块规范
+
+> 本规范适用于公共资源管理模块下的所有 BZC 业务组件和 Domain 实体
+
+## 1. 目录结构
+
+### BZC业务组件 (bzc/基础/)
+```
+bzc/基础/公共资源管理/
+├── 物理建模/
+│   ├── 1_企业/EnterpriseInfo.groovy
+│   ├── 2_工厂/FactoryInfo.groovy
+│   ├── 3_园区/ParkInfo.groovy
+│   ├── 4_厂区/AreaInfo.groovy
+│   ├── 5_车间/WorkshopInfo.groovy
+│   ├── 6_工段/SectionInfo.groovy
+│   └── 7_生产线/ProductionLineInfo.groovy
+├── 人员管理/人员信息/
+│   ├── AreaSource.groovy
+│   ├── CreateEmpAndUser.groovy
+│   ├── QueryUserStatus.groovy
+│   └── UserArea.groovy
+└── 物料管理/无需上料物料/
+    └── NoFeedMaterialAdd.groovy
+```
+
+### Domain实体 (Domain/基础/公共资源管理/)
+```
+Domain/基础/公共资源管理/
+├── 生产基础资料/
+│   ├── 班次/
+│   │   ├── Shift.json
+│   │   └── BreakTime.json
+│   └── 排班明细/
+│       ├── ScheduleDetails.json
+│       └── MFGCalendar.json
+```
+
+## 2. 通用规范
+
+### 包路径
+```
+app.base.bzcomponent.public_resource_management.{子模块}.{功能模块}
+```
+
+### 字段命名
+- **xxNo** - 代表某某编号
+- **xxName** - 代表某某名称
+
+### 文件类型
+- **.json 文件** → Domain 实体
+- **.groovy 文件** → BZC 业务组件
+
+## 3. 业务规则
+
+| 模块 | 规则 | 说明 |
+|-----|------|------|
+| 物理建模 | 删除校验 | 删除上级模块时，检查下级是否有引用 |
+| 物理建模 | 层级关系 | 企业→工厂→园区→厂区→车间→工段→生产线 |
+| 物理建模 | No/Name对应 | 每级模块都有 xxNo 和 xxName 字段 |
+| 人员管理 | 用户同步 | 创建员工时同步创建系统用户 |
+| 人员管理 | 删除密码 | 删除操作不需要密码，密码从配置读取 |
+| 物料管理 | 联合唯一 | material + areaNo 联合唯一 |
+| 物料管理 | 批量校验 | 使用 RQL 参数化查询，避免SQL拼接 |
+| 物料 | 版本控制 | Material 启用了 revision |
+| 班次 | 编号唯一 | shiftNo 唯一，重复则更新 |
+| 班次 | 联合唯一 | shiftNo + seq 联合唯一 |
+| 班次 | 删除校验 | 删除班次前需检查休息时间引用 |
+| RQL查询 | 批量查询 | 使用 {? '字段名'} 占位符，一次查询代替循环 |
+
+## 4. 物理建模层级
+
+| 层级 | 模块 | 上级 | 下级 | No字段 | Name字段 |
+|-----|------|-----|-----|--------|--------|
+| 1 | 企业 | - | 工厂 | enterpriseNo | enterpriseName |
+| 2 | 工厂 | 企业 | 园区 | factoryNo | factoryName |
+| 3 | 园区 | 工厂 | 厂区 | parkNo | parkName |
+| 4 | 厂区 | 园区 | 车间 | areaNo | areaName |
+| 5 | 车间 | 厂区 | 工段 | workshopNo | workshopName |
+| 6 | 工段 | 车间 | 生产线 | sectionNo | sectionName |
+| 7 | 生产线 | 工段 | - | productionLineNo | productionLineName |
+
+## 5. 组件说明
+
+### 人员管理
+| 组件 | 功能 |
+|-----|------|
+| AreaSource | 获取当前登录人员的厂区信息 |
+| CreateEmpAndUser | 同步创建/修改/删除员工对应的系统用户 |
+| QueryUserStatus | 查询用户状态信息 |
+| UserArea | 查询用户所属厂区 |
+
+## 6. Domain 实体
+
+### 班次 (Shift)
+**包路径**：`app.base.domain.public_resource_management.production_master_data.shift.Shift`
+
+| 字段名 | 类型 | nullable | 说明 |
+|-------|------|----------|------|
+| shiftNo | String(128) | false | 班次编码，唯一 |
+| shiftName | String(30) | true | 班次名称 |
+| whetherCrossSky | Decimal(24,6) | true | 是否跨天，0否1是 |
+| shiftDuration | Decimal(24,6) | true | 班次时长 |
+| shiftBegin | Time | true | 开始时间 |
+| shiftEnd | Time | true | 结束时间 |
+
+### 休息时间 (BreakTime)
+**包路径**：`app.base.domain.public_resource_management.production_master_data.shift.BreakTime`
+
+| 字段名 | 类型 | nullable | 说明 |
+|-------|------|----------|------|
+| shiftNo | String(128) | true | 班次编码，联合唯一 |
+| seq | Integer | true | 项次，按班次编号流水 |
+| explanation | String(30) | true | 说明 |
+| beginTime | Time | true | 开始时间 |
+| endTime | Time | true | 结束时间 |
+| restTime | Timespan | true | 休息时长 |
+
+### 排班明细 (ScheduleDetails)
+**包路径**：`app.base.domain.public_resource_management.production_master_data.schedule_details.ScheduleDetails`
+
+| 字段名 | 类型 | nullable | 说明 |
+|-------|------|----------|------|
+| teamNo | String(30) | true | 班组编码 |
+| employee | String(30) | true | 雇员ID |
+| calendarNo | String(128) | true | 生产日历编码 |
+| date | Datetime | true | 日期 |
+| shiftNo | String(30) | true | 班次编码 |
+| employeeJobNumber | String(128) | true | 员工工号 |
+| fattenddatestart | Date | true | 接口入参开始时间 |
+| fattenddateend | Date | true | 接口入参结束时间 |
+
+### 生产日历 (MFGCalendar)
+**包路径**：`app.base.domain.public_resource_management.production_master_data.schedule_details.MFGCalendar`
+
+| 字段名 | 类型 | nullable | 说明 |
+|-------|------|----------|------|
+| calendarNo | String(128) | false | 生产日历编码，唯一 |
+| calendarName | String(128) | true | 生产日历名称 |
+| remarks | String(64) | true | 备注 |
+
+## 7. 代码模板
+
+### RQL 批量查询
+```groovy
+// ✅ 正确
+def areaRql = "select * from Area where areaNo *= {? 'areaNo'}";
+def areaResult = ude.execQuery(areaRql, ['areaNo': areaNoList], true);
+
+// ❌ 错误：SQL 拼接
+def areaStr = areaList.join("','");
+```

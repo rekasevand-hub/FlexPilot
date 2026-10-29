@@ -1,0 +1,109 @@
+---
+name: interface-management
+description: 接口管理模块规范，包含HR、OA、PDC、QMS等子模块的目录结构、Domain实体、BZC组件、业务规则等。
+compatibility: opencode
+metadata:
+  layer: business
+  priority: 2
+---
+
+# 接口管理模块规范
+
+> 本规范适用于接口管理模块下的所有 BZC 业务组件和 Domain 实体
+
+## 1. 目录结构
+
+### BZC业务组件 (bzc/接口管理/)
+```
+bzc/接口管理/
+├── HR/PerInfoSync.groovy
+├── OA/EmployeeBaseInfo.groovy
+├── PDC/PdcSubstitutionGroup.groovy
+└── QMS/UnqualifiedInfoReceive.groovy
+```
+
+### Domain实体 (Domain/接口管理/)
+```
+Domain/接口管理/
+├── ApiApplicationInfo.json
+├── InterfaceConfig.json
+└── MessageInterfaceLogInfo.json
+```
+
+## 2. 包命名
+
+```
+BZC: app.interface_manage.bzcomponent.{子模块}.{功能模块}
+Domain: app.interface_manage.domain.{子模块}.{功能模块}
+```
+
+## 3. Domain 实体
+
+### 接口应用信息 (ApiApplicationInfo)
+| 字段名 | 类型 | nullable |
+|-------|------|----------|
+| appId | String(255) | true |
+| tokenUrl | String(255) | true |
+| userToken | Text | true |
+| userExpireAt | Long | true |
+
+### 接口配置 (InterfaceConfig)
+| 字段名 | 类型 | nullable |
+|-------|------|----------|
+| interfaceCode | String(50) | true |
+| interfaceUrl | String(255) | true |
+| executionTime | Datetime | true |
+
+### 接口日志 (MessageInterfaceLogInfo)
+| 字段名 | 类型 | nullable |
+|-------|------|----------|
+| logTime | Datetime | true |
+| interfaceCode | String(255) | true |
+| inParam | Text | true |
+| outParam | Text | true |
+| result | Integer | true |
+
+## 4. 子模块规范
+
+### 4.1 HR 模块
+- **接口调用**：OpenApiHelper.invokeOpenApiPost()
+- **分页查询**：pageNo 从 0 开始
+- **去重逻辑**：按 username 大小写不敏感
+
+### 4.2 OA 模块
+- **数据源**：fhsys.MV_USERPOSTDEPT
+- **查询条件**：isactive = '1' AND isadditionalpost = 'N'
+- **同步标识**：isComplete 必须在 return 之前置为 true
+
+### 4.3 PDC 模块
+- **游标分页**：最多循环100次
+- **批量保存**：ude.batchUpsert()
+
+### 4.4 QMS 模块
+- **入参校验**：必填字段为空时抛出异常
+
+## 5. 代码规范
+
+### 分页查询
+```groovy
+// ✅ 正确：pageNo 从 0 开始
+params.page.pageNo = 0;
+while (true) {
+    params.page.pageNo++;
+    def result = this.getData(params);
+    if (result.data) { ... } else { break; }
+}
+```
+
+### 去重逻辑
+```groovy
+def tempList = resultData.groupBy { it.username == null ? it.userid : (it.username as String).toUpperCase() };
+```
+
+### 删除后返回
+```groovy
+if (Refresh && emp?.employee != null) {
+    emp.remove();
+    return null;
+}
+```
