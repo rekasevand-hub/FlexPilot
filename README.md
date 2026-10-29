@@ -88,7 +88,7 @@ python .kimi-code/skills/flexpilot/scripts/run.py --env dev --file src/path/to/f
 
 ```bash
 node scripts/sync-skills.js           # .opencode/skills → .qoder/skills
-node scripts/sync-repowiki.js         # .qoder/repowiki → wiki/（自动脱敏 + 生成索引）
+node scripts/sync-repowiki.js         # .qoder/repowiki → wiki/（生成索引）
 ```
 
 两者都支持 `--dry-run` 预览。
